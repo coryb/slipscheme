@@ -169,6 +169,8 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 					if err := s.writeGoCode(typeName, typeData); err != nil {
 						return "", err
 					}
+				} else {
+					typeName = fmt.Sprintf("map[string]%s", subTypeName)
 				}
 			}
 		}
