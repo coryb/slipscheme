@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 )
 
@@ -128,7 +129,13 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 		typeName = camelCase(schema.Title)
 		if schema.Properties != nil {
 			typeData := fmt.Sprintf("type %s struct {\n", typeName)
-			for k, v := range schema.Properties {
+			keys := make([]string,0)
+			for k, _ := range schema.Properties {
+				keys = append(keys,k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				v := schema.Properties[k]
 				subTypeName, err := s.processSchema(v)
 				if err != nil {
 					return "", err
@@ -140,7 +147,13 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 				return "", err
 			}
 		} else if schema.PatternProperties != nil {
-			for _, v := range schema.PatternProperties {
+			keys := make([]string,0)
+			for k, _ := range schema.PatternProperties {
+				keys = append(keys,k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				v := schema.PatternProperties[k]
 				subTypeName, err := s.processSchema(v)
 				if err != nil {
 					return "", err
