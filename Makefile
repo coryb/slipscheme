@@ -30,7 +30,7 @@ LDFLAGS:=-X jira.VERSION=$(CURVER) -w
 GOBUILD=go build -v -ldflags "$(LDFLAGS) -s"
 
 build: 
-	$(GOBUILD) -o '$(BIN)' schemy.go
+	$(GOBUILD) -o '$(BIN)' $(NAME).go
 
 src/%:
 	mkdir -p $(@D)
