@@ -1,0 +1,59 @@
+{
+  "title": "contact",
+  "type": "object",
+  "definitions": {
+    "address": {
+      "id": "address",
+      "type": "object",
+      "properties": {
+        "street": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "zipcode": {
+          "type": "integer"
+        }
+      }
+    }
+  }, 
+  "properties": {
+    "home-address": {
+      "$ref": "#/definitions/address"
+    },
+    "work-address": {
+      "$ref": "#/definitions/address"
+    },
+    "name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "array",
+      "items": {
+        "title": "phone",
+        "type": "object",
+        "properties": {
+          "country-code": {
+            "type": "string"
+          },
+          "area-code": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "email-address": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

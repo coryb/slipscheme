@@ -22,7 +22,9 @@ type Schema struct {
 	Definitions       map[string]*Schema `json:"definitions"`
 	Properties        map[string]*Schema `json:"properties"`
 	PatternProperties map[string]*Schema `json:"patternProperties"`
+	Ref               string             `json:"$ref"`
 	Items             *Schema            `json:"items"`
+	Root              *Schema
 }
 
 type SchemaType int
@@ -89,15 +91,14 @@ type SchemaProcessor struct {
 
 func (s *SchemaProcessor) Process(files []string) error {
 	for _, file := range files {
-		schema := &Schema{}
-
 		fh, err := os.OpenFile(file, os.O_RDONLY, 0644)
 		defer fh.Close()
 		b, err := ioutil.ReadAll(fh)
 		if err != nil {
 			return err
 		}
-		err = json.Unmarshal(b, schema)
+
+		schema, err := s.ParseSchema(b)
 		if err != nil {
 			return err
 		}
@@ -108,6 +109,62 @@ func (s *SchemaProcessor) Process(files []string) error {
 		}
 	}
 	return nil
+}
+
+func (s *SchemaProcessor) ParseSchema(data []byte) (*Schema, error) {
+	schema := &Schema{}
+	err := json.Unmarshal(data, schema)
+	if err != nil {
+		return nil, err
+	}
+	setRoot(schema,schema)
+	return schema, nil
+}
+
+func setRoot(root, schema *Schema) {
+	schema.Root = root
+	if schema.Properties != nil {
+		for k, v := range schema.Properties {
+			setRoot(root, v)
+			if v.Name() == "" {
+				v.Title = k
+			}
+		}
+	}
+	if schema.PatternProperties != nil {
+		for _, v := range schema.PatternProperties {
+			setRoot(root, v)
+		}
+	}
+	if schema.Items != nil {
+		setRoot(root, schema.Items)
+	}
+
+	if schema.Ref != "" {
+		schemaPath := strings.Split(schema.Ref, "/")
+		var ctx interface{}
+		ctx = schema
+		for _, part := range schemaPath {
+			if part == "#" {
+				ctx = root
+			} else if part == "definitions" {
+				ctx = ctx.(*Schema).Definitions
+			} else if part == "properties" {
+				ctx = ctx.(*Schema).Properties
+			} else if part == "patternProperties" {
+				ctx = ctx.(*Schema).PatternProperties
+			} else if part == "items" {
+				ctx = ctx.(*Schema).Items
+			} else {
+				if cast, ok := ctx.(map[string]*Schema); ok {
+					ctx = cast[part]
+				}
+			}
+		}
+		if cast, ok := ctx.(*Schema); ok {
+			*schema = *cast
+		}
+	}
 }
 
 func camelCase(name string) string {
