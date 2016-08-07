@@ -219,10 +219,11 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 				}
 				typeData += fmt.Sprintf("    %s %s `json:\"%s,omitempty\" yaml:\"%s,omitempty\"`\n", camelCase(k), subTypeName, k, k)
 			}
-			typeData += "}\n"
+			typeData += "}\n\n"
 			if err := s.writeGoCode(typeName, typeData); err != nil {
 				return "", err
 			}
+			typeName = fmt.Sprintf("*%s", typeName)
 		} else if schema.PatternProperties != nil {
 			keys := make([]string,0)
 			for k, _ := range schema.PatternProperties {
@@ -237,9 +238,9 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 				}
 
 				// verify subTypeName is not a simple type
-				if strings.ToTitle(subTypeName) == subTypeName {
-					typeName = fmt.Sprintf("%sMap", subTypeName)
-					typeData := fmt.Sprintf("type %s map[string]%s\n", typeName, subTypeName)
+				if strings.Title(subTypeName) == subTypeName {
+					typeName = strings.TrimPrefix(fmt.Sprintf("%sMap", subTypeName), "*")
+					typeData := fmt.Sprintf("type %s map[string]%s\n\n", typeName, subTypeName)
 					if err := s.writeGoCode(typeName, typeData); err != nil {
 						return "", err
 					}
@@ -253,13 +254,14 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 		if err != nil {
 			return "", err
 		}
-		if strings.ToTitle(subTypeName) == subTypeName {
+		if strings.Title(subTypeName) == subTypeName {
 			if strings.HasSuffix(subTypeName, "s") {
 				typeName = fmt.Sprintf("%ses", subTypeName)
 			} else {
 				typeName = fmt.Sprintf("%ss", subTypeName)
 			}
-			typeData := fmt.Sprintf("type %s []%s\n", typeName, subTypeName)
+			typeName = strings.TrimPrefix(typeName, "*")
+			typeData := fmt.Sprintf("type %s []%s\n\n", typeName, subTypeName)
 			if err := s.writeGoCode(typeName, typeData); err != nil {
 				return "", err
 			}
