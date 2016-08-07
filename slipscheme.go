@@ -101,6 +101,7 @@ type SchemaProcessor struct {
 	Overwrite bool
 	Stdout bool
 	Fmt bool
+	processed map[string]bool
 }
 
 func (s *SchemaProcessor) Process(files []string) error {
@@ -280,6 +281,18 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 }
 
 func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
+	if seen, ok := s.processed[typeName]; ok && seen {
+		return nil
+	}
+	// mark schemas as processed so we dont print/write it out again
+	if s.processed == nil {
+		s.processed = map[string]bool{
+			typeName: true,
+		}
+	} else {
+		s.processed[typeName] = true
+	}
+
 	if s.Stdout {
 		if s.Fmt {
 			cmd := exec.Command("gofmt", "-s");
