@@ -27,6 +27,17 @@ type Schema struct {
 	Root              *Schema
 }
 
+func (s *Schema) Name() string {
+	name := s.Title
+	if name == "" {
+		name = s.ID
+	}
+	if name == "" {
+		return s.Description
+	}
+	return name
+}
+
 type SchemaType int
 
 const (
@@ -173,9 +184,11 @@ func camelCase(name string) string {
 			if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
 				return r
 			}
-			return -1
+			return ' '
 		}, name),
 	)
+	caseName = strings.Replace(caseName, " ", "", -1)
+	
 	if strings.HasSuffix(caseName, "Id") {
 		return strings.TrimSuffix(caseName, "Id") + "ID"
 	} else if strings.HasSuffix(caseName, "Url") {
@@ -186,7 +199,7 @@ func camelCase(name string) string {
 
 func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err error) {
 	if schema.Type == OBJECT {
-		typeName = camelCase(schema.Title)
+		typeName = camelCase(schema.Name())
 		if schema.Properties != nil {
 			typeData := fmt.Sprintf("type %s struct {\n", typeName)
 			keys := make([]string,0)
