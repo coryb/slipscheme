@@ -78,6 +78,7 @@ func main() {
 	pkgName   := flag.String("pkg", "main", "package namespace for go files")
 	overwrite := flag.Bool("overwrite", false, "force overwriting existing go files")
 	stdout    := flag.Bool("stdout", false, "print go code to stdout rather than files")
+	format    := flag.Bool("fmt", true, "pass code through gofmt")
 	flag.Parse()
 
 	processor := &SchemaProcessor{
@@ -85,6 +86,7 @@ func main() {
 		PackageName: *pkgName,
 		Overwrite: *overwrite,
 		Stdout: *stdout,
+		Fmt: *format,
 	}
 
 	err := processor.Process(flag.Args())
@@ -98,6 +100,7 @@ type SchemaProcessor struct {
 	PackageName string
 	Overwrite bool
 	Stdout bool
+	Fmt bool
 }
 
 func (s *SchemaProcessor) Process(files []string) error {
@@ -278,14 +281,19 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 
 func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
 	if s.Stdout {
-		cmd := exec.Command("gofmt", "-s");
-		inPipe, _ := cmd.StdinPipe()
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Start()
-		inPipe.Write([]byte(code))
-		inPipe.Close()
-		return cmd.Wait()
+		if s.Fmt {
+			cmd := exec.Command("gofmt", "-s");
+			inPipe, _ := cmd.StdinPipe()
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Start()
+			inPipe.Write([]byte(code))
+			inPipe.Close()
+			return cmd.Wait()
+		} else {
+			fmt.Print(code)
+			return nil
+		}
 	}
 	file := path.Join(s.OutputDir, fmt.Sprintf("%s.go", typeName))
 	if !s.Overwrite {
@@ -319,9 +327,12 @@ func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
 		return err
 	}
 
-	cmd := exec.Command("gofmt", "-s", "-w", file);
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	if s.Fmt {
+		cmd := exec.Command("gofmt", "-s", "-w", file);
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+	return nil
 }
