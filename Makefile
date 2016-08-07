@@ -48,7 +48,7 @@ all:
         echo "Building for $$p"; \
         ${MAKE} build GOOS=$${p/-*/} GOARCH=$${p/*-/} BIN=$(DIST)/$(NAME)-$$p; \
     done
-	for x in $(DIST)/$(NAME)-windows-*; do mv $$x $$x.exe; done
+	shopt -s nullglob; for x in m$(DIST)/$(NAME)-windows-*; do mv $$x $$x.exe; done
 
 fmt:
 	gofmt -s -w *.go
@@ -80,3 +80,18 @@ version:
 
 clean:
 	rm -rf pkg dist bin ./$(NAME)
+
+GOTARGZ=go1.6.3.linux-amd64.tar.gz
+docker-build:
+	${MAKE} PLATFORMS=linux-amd64 all
+	mkdir -p docker-root/bin
+	cp dist/slipscheme-linux-amd64 docker-root/bin/slipscheme
+	[ -f $(GOTARGZ) ] || wget https://storage.googleapis.com/golang/$(GOTARGZ)
+	tar xzf ./go1.6.3.linux-amd64.tar.gz -C docker-root --strip-components 1 go/bin/gofmt
+	docker build -t coryb/$(NAME):$(CURVER) .
+	docker tag coryb/$(NAME):$(CURVER) coryb/$(NAME):latest
+
+docker-release: docker-build
+	docker push coryb/$(NAME):$(CURVER)
+	docker push coryb/$(NAME):latest
+

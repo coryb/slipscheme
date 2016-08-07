@@ -1,0 +1,5 @@
+*.tar.gz
+dist
+slipscheme
+*.go
+*.md
