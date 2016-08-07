@@ -32,29 +32,23 @@ GOBUILD=go build -v -ldflags "$(LDFLAGS) -s"
 build: 
 	$(GOBUILD) -o '$(BIN)' $(NAME).go
 
-src/%:
-	mkdir -p $(@D)
-	test -L $@ || ln -sf '$(GOPATH)' $@
-	go get -v $* $*/main
-
 vet:
 	@go tool vet *.go
 
-all: src/$(PACKAGE)
-	docker pull karalabe/xgo-latest
-	rm -rf dist
-	mkdir -p dist
-	docker run --rm -e EXT_GOPATH=/gopath -v $$(pwd):/gopath -e TARGETS="$(PLATFORMS)" -v $$(pwd)/dist:/build karalabe/xgo-latest $(PACKAGE)/main
-	[ `uname -s` = 'Darwin' ] && format=-f || format=-c; \
-	eval $$(stat $$format "uid=%u gid=%g" .); \
-	for x in $(DIST)/main-*; do \
-		y=$$(echo $$x | sed -e 's/darwin-[^-]*/darwin/' -e 's/main/newt/'); \
-		mv $$x $$y; \
-		eval $$(stat $$format "binuid=%u bingid=%g" $$y); \
-		if [ "$$binuid" != "$$uid" -o "$$bingid" != "$$gid" ]; then \
-			sudo chown $$uid:$$gid $$y; \
-		fi \
-	done
+cross-setup:
+	for p in $(PLATFORMS); do \
+        echo Building for $$p"; \
+		cd $(GOROOT)/src && sudo GOROOT_BOOTSTRAP=$(GOROOT) GOOS=$${p/-*/} GOARCH=$${p/*-/} bash ./make.bash --no-clean; \
+   done
+
+all:
+	rm -rf $(DIST); \
+	mkdir -p $(DIST); \
+	for p in $(PLATFORMS); do \
+        echo "Building for $$p"; \
+        ${MAKE} build GOOS=$${p/-*/} GOARCH=$${p/*-/} BIN=$(DIST)/$(NAME)-$$p; \
+    done
+	for x in $(DIST)/$(NAME)-windows-*; do mv $$x $$x.exe; done
 
 fmt:
 	gofmt -s -w *.go
@@ -85,4 +79,4 @@ version:
 	@echo $(CURVER)
 
 clean:
-	rm -rf pkg dist bin src ./$(NAME)
+	rm -rf pkg dist bin ./$(NAME)
