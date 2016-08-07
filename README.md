@@ -6,6 +6,11 @@ Simple tool to convert JSON schemas to Go types
 
 Download the binaries from the [latest release](https://github.com/coryb/slipscheme/releases/latest).
 
+You can also run it from super-minimal docker image as well (only 6M).  It would be run like:
+```bash
+docker run -i --rm -v $(pwd):/work coryb/slipscheme:latest
+```
+
 ## Usage
 
 ```bash
