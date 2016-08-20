@@ -27,6 +27,8 @@ type Schema struct {
 	Root              *Schema
 }
 
+// Name will attempt to determine the name of the Schema element using
+// the Title or ID or Description (in that order)
 func (s *Schema) Name() string {
 	name := s.Title
 	if name == "" {
@@ -38,19 +40,30 @@ func (s *Schema) Name() string {
 	return name
 }
 
+// SchemaType is an ENUM that is set on parsing the schema
 type SchemaType int
 
 const (
+	// ANY is a schema element that has no defined type
 	ANY     SchemaType = iota
+	// ARRAY is a schema type "array"
 	ARRAY   SchemaType = iota
+	// BOOLEAN is a schema type "boolean"
 	BOOLEAN SchemaType = iota
+	// INTEGER is a schema type "integer"
 	INTEGER SchemaType = iota
+	// NUMBER is a schema type "number"
 	NUMBER  SchemaType = iota
+	// NULL is a schema type "null"
 	NULL    SchemaType = iota
+	// OBJECT is a schema type "object"
 	OBJECT  SchemaType = iota
+	// STRING is a schema type "string"
 	STRING  SchemaType = iota
 )
 
+// UnmarshalJSON for SchemaType so we can parse the schema
+// type string and set the ENUM
 func (s *SchemaType) UnmarshalJSON(b []byte) error {
 	var schemaType string
 	err := json.Unmarshal(b, &schemaType)
@@ -95,6 +108,7 @@ func main() {
 	}
 }
 
+// SchemaProcessor object used to convert json schemas to golang structs
 type SchemaProcessor struct {
 	OutputDir string
 	PackageName string
@@ -104,6 +118,8 @@ type SchemaProcessor struct {
 	processed map[string]bool
 }
 
+// Process will read a list of json schema files, parse them
+// and write them to the OutputDir
 func (s *SchemaProcessor) Process(files []string) error {
 	for _, file := range files {
 		fh, err := os.OpenFile(file, os.O_RDONLY, 0644)
@@ -126,6 +142,9 @@ func (s *SchemaProcessor) Process(files []string) error {
 	return nil
 }
 
+// ParseSchema simply parses the schema and post-processes the objects
+// so each knows the Root object and also resolve/flatten any $ref objects
+// found in the document.
 func (s *SchemaProcessor) ParseSchema(data []byte) (*Schema, error) {
 	schema := &Schema{}
 	err := json.Unmarshal(data, schema)
@@ -206,8 +225,8 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 		typeName = camelCase(schema.Name())
 		if schema.Properties != nil {
 			typeData := fmt.Sprintf("type %s struct {\n", typeName)
-			keys := make([]string,0)
-			for k, _ := range schema.Properties {
+			keys := []string{}
+			for k := range schema.Properties {
 				keys = append(keys,k)
 			}
 			sort.Strings(keys)
@@ -225,8 +244,8 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 			}
 			typeName = fmt.Sprintf("*%s", typeName)
 		} else if schema.PatternProperties != nil {
-			keys := make([]string,0)
-			for k, _ := range schema.PatternProperties {
+			keys := []string{}
+			for k := range schema.PatternProperties {
 				keys = append(keys,k)
 			}
 			sort.Strings(keys)
@@ -305,10 +324,9 @@ func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
 			inPipe.Write([]byte(code))
 			inPipe.Close()
 			return cmd.Wait()
-		} else {
-			fmt.Print(code)
-			return nil
 		}
+		fmt.Print(code)
+		return nil
 	}
 	file := path.Join(s.OutputDir, fmt.Sprintf("%s.go", typeName))
 	if !s.Overwrite {
