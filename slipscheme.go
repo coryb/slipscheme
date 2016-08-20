@@ -45,21 +45,21 @@ type SchemaType int
 
 const (
 	// ANY is a schema element that has no defined type
-	ANY     SchemaType = iota
+	ANY SchemaType = iota
 	// ARRAY is a schema type "array"
-	ARRAY   SchemaType = iota
+	ARRAY SchemaType = iota
 	// BOOLEAN is a schema type "boolean"
 	BOOLEAN SchemaType = iota
 	// INTEGER is a schema type "integer"
 	INTEGER SchemaType = iota
 	// NUMBER is a schema type "number"
-	NUMBER  SchemaType = iota
+	NUMBER SchemaType = iota
 	// NULL is a schema type "null"
-	NULL    SchemaType = iota
+	NULL SchemaType = iota
 	// OBJECT is a schema type "object"
-	OBJECT  SchemaType = iota
+	OBJECT SchemaType = iota
 	// STRING is a schema type "string"
-	STRING  SchemaType = iota
+	STRING SchemaType = iota
 )
 
 // UnmarshalJSON for SchemaType so we can parse the schema
@@ -88,32 +88,40 @@ func (s *SchemaType) UnmarshalJSON(b []byte) error {
 
 func (s *SchemaType) MarshalJSON() ([]byte, error) {
 	switch *s {
-	case ANY: return []byte("\"object\""), nil
-	case ARRAY: return []byte("\"array\""), nil
-	case BOOLEAN: return []byte("\"boolean\""), nil
-	case INTEGER: return []byte("\"integer\""), nil
-	case NUMBER: return []byte("\"number\""), nil
-	case NULL: return []byte("\"null\""), nil
-	case OBJECT: return []byte("\"object\""), nil
-	case STRING: return []byte("\"string\""), nil
+	case ANY:
+		return []byte("\"object\""), nil
+	case ARRAY:
+		return []byte("\"array\""), nil
+	case BOOLEAN:
+		return []byte("\"boolean\""), nil
+	case INTEGER:
+		return []byte("\"integer\""), nil
+	case NUMBER:
+		return []byte("\"number\""), nil
+	case NULL:
+		return []byte("\"null\""), nil
+	case OBJECT:
+		return []byte("\"object\""), nil
+	case STRING:
+		return []byte("\"string\""), nil
 	}
 	return nil, fmt.Errorf("Unknown Schema Type: %#v", s)
 }
 
 func main() {
 	outputDir := flag.String("dir", ".", "output directory for go files")
-	pkgName   := flag.String("pkg", "main", "package namespace for go files")
+	pkgName := flag.String("pkg", "main", "package namespace for go files")
 	overwrite := flag.Bool("overwrite", false, "force overwriting existing go files")
-	stdout    := flag.Bool("stdout", false, "print go code to stdout rather than files")
-	format    := flag.Bool("fmt", true, "pass code through gofmt")
+	stdout := flag.Bool("stdout", false, "print go code to stdout rather than files")
+	format := flag.Bool("fmt", true, "pass code through gofmt")
 	flag.Parse()
 
 	processor := &SchemaProcessor{
-		OutputDir: *outputDir,
+		OutputDir:   *outputDir,
 		PackageName: *pkgName,
-		Overwrite: *overwrite,
-		Stdout: *stdout,
-		Fmt: *format,
+		Overwrite:   *overwrite,
+		Stdout:      *stdout,
+		Fmt:         *format,
 	}
 
 	err := processor.Process(flag.Args())
@@ -124,12 +132,12 @@ func main() {
 
 // SchemaProcessor object used to convert json schemas to golang structs
 type SchemaProcessor struct {
-	OutputDir string
+	OutputDir   string
 	PackageName string
-	Overwrite bool
-	Stdout bool
-	Fmt bool
-	processed map[string]bool
+	Overwrite   bool
+	Stdout      bool
+	Fmt         bool
+	processed   map[string]bool
 }
 
 // Process will read a list of json schema files, parse them
@@ -147,7 +155,7 @@ func (s *SchemaProcessor) Process(files []string) error {
 		if err != nil {
 			return err
 		}
-		
+
 		_, err = s.processSchema(schema)
 		if err != nil {
 			return err
@@ -165,7 +173,7 @@ func (s *SchemaProcessor) ParseSchema(data []byte) (*Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	setRoot(schema,schema)
+	setRoot(schema, schema)
 	return schema, nil
 }
 
@@ -252,7 +260,7 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 			typeData := fmt.Sprintf("// %s defined from schema:\n// %s\ntype %s struct {\n", typeName, prettyPrint, typeName)
 			keys := []string{}
 			for k := range schema.Properties {
-				keys = append(keys,k)
+				keys = append(keys, k)
 			}
 			sort.Strings(keys)
 			for _, k := range keys {
@@ -271,7 +279,7 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 		} else if schema.PatternProperties != nil {
 			keys := []string{}
 			for k := range schema.PatternProperties {
-				keys = append(keys,k)
+				keys = append(keys, k)
 			}
 			sort.Strings(keys)
 			for _, k := range keys {
@@ -341,7 +349,7 @@ func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
 
 	if s.Stdout {
 		if s.Fmt {
-			cmd := exec.Command("gofmt", "-s");
+			cmd := exec.Command("gofmt", "-s")
 			inPipe, _ := cmd.StdinPipe()
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
@@ -378,7 +386,7 @@ func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
 /////////////////////////////////////////////////////////////////////////
 
 `, strings.Join(os.Args, " "))
-		
+
 	if _, err := fh.Write([]byte(preamble)); err != nil {
 		return err
 	}
@@ -387,7 +395,7 @@ func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
 	}
 
 	if s.Fmt {
-		cmd := exec.Command("gofmt", "-s", "-w", file);
+		cmd := exec.Command("gofmt", "-s", "-w", file)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
