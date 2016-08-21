@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/coryb/slipscheme.svg?branch=master)](https://travis-ci.org/coryb/slipscheme)
+
 ## slipscheme
 
 Simple tool to convert JSON schemas to Go types
