@@ -27,10 +27,20 @@ GOBIN ?= $(CWD)
 
 CURVER ?= $(patsubst v%,%,$(shell [ -d .git ] && git describe --abbrev=0 --tags || grep ^\#\# CHANGELOG.md | awk '{print $$2; exit}'))
 LDFLAGS:=-X jira.VERSION=$(CURVER) -w
-GOBUILD=go build -v -ldflags "$(LDFLAGS) -s"
+
+# use make DEBUG=1 and you can get a debuggable golang binary
+# see https://github.com/mailgun/godebug
+ifneq ($(DEBUG),)
+	GOBUILD=go get -v github.com/mailgun/godebug && ./bin/godebug build
+else
+	GOBUILD=go build -v -ldflags "$(LDFLAGS) -s"
+endif
 
 build: 
 	$(GOBUILD) -o '$(BIN)' $(NAME).go
+
+debug:
+	$(MAKE) DEBUG=1
 
 vet:
 	@go tool vet *.go
