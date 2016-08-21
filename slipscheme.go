@@ -127,9 +127,16 @@ func main() {
 		Comment:     *comments,
 	}
 
-	err := processor.Process(flag.Args())
+	args := flag.Args()
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "Usage: %s <schema file> [<schema file> ...]\n", os.Args[0])
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+	err := processor.Process(args)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		os.Exit(1)
 	}
 }
 
