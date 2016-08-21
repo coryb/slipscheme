@@ -330,12 +330,18 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 		if err != nil {
 			return "", err
 		}
-		if strings.Title(subTypeName) == subTypeName {
-			if strings.HasSuffix(subTypeName, "s") {
-				typeName = fmt.Sprintf("%ses", subTypeName)
-			} else {
-				typeName = fmt.Sprintf("%ss", subTypeName)
+
+		typeName = camelCase(schema.Name())
+		if typeName == "" {
+			if strings.Title(subTypeName) == subTypeName {
+				if strings.HasSuffix(subTypeName, "s") {
+					typeName = fmt.Sprintf("%ses", subTypeName)
+				} else {
+					typeName = fmt.Sprintf("%ss", subTypeName)
+				}
 			}
+		}
+		if typeName != "" {
 			typeName = strings.TrimPrefix(typeName, "*")
 			typeData := fmt.Sprintf("%stype %s []%s\n\n", s.structComment(schema, typeName), typeName, subTypeName)
 			if err := s.writeGoCode(typeName, typeData); err != nil {
