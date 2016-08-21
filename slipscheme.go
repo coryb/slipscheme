@@ -86,6 +86,8 @@ func (s *SchemaType) UnmarshalJSON(b []byte) error {
 	return fmt.Errorf("Unknown schema type \"%s\"", schemaType)
 }
 
+// MarshalJSON for SchemaType so we serialized the schema back
+// to json for debugging
 func (s *SchemaType) MarshalJSON() ([]byte, error) {
 	switch *s {
 	case ANY:

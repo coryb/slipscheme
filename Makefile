@@ -89,7 +89,7 @@ version:
 	@echo $(CURVER)
 
 clean:
-	rm -rf pkg dist bin ./$(NAME)
+	rm -rf pkg src dist bin ./$(NAME)
 
 GOTARGZ=go1.6.3.linux-amd64.tar.gz
 docker-build:
