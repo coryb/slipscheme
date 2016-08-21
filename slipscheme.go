@@ -155,8 +155,17 @@ type SchemaProcessor struct {
 // and write them to the OutputDir
 func (s *SchemaProcessor) Process(files []string) error {
 	for _, file := range files {
-		fh, err := os.OpenFile(file, os.O_RDONLY, 0644)
-		defer fh.Close()
+		var fh *os.File
+		if file == "-" {
+			fh = os.Stdin
+		} else {
+			var err error
+			fh, err = os.OpenFile(file, os.O_RDONLY, 0644)
+			defer fh.Close()
+			if err != nil {
+				return err
+			}
+		}
 		b, err := ioutil.ReadAll(fh)
 		if err != nil {
 			return err
