@@ -1,6 +1,5 @@
 #!/bin/bash
-#eval "$(curl -q -s https://raw.githubusercontent.com/coryb/osht/master/osht.sh)"
-. $HOME/oss/osht/osht.sh
+eval "$(curl -q -s https://raw.githubusercontent.com/coryb/osht/master/osht.sh)"
 cd $(dirname $0)
 slipscheme="../slipscheme"
 
