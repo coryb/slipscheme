@@ -2,3 +2,6 @@ slipscheme
 dist
 docker-root
 go*.tar.gz
+bin
+pkg
+src
