@@ -114,6 +114,8 @@ func main() {
 	overwrite := flag.Bool("overwrite", false, "force overwriting existing go files")
 	stdout := flag.Bool("stdout", false, "print go code to stdout rather than files")
 	format := flag.Bool("fmt", true, "pass code through gofmt")
+	comments := flag.Bool("comments", true, "enable/disable print comments")
+
 	flag.Parse()
 
 	processor := &SchemaProcessor{
@@ -122,6 +124,7 @@ func main() {
 		Overwrite:   *overwrite,
 		Stdout:      *stdout,
 		Fmt:         *format,
+		Comment:     *comments,
 	}
 
 	err := processor.Process(flag.Args())
@@ -137,6 +140,7 @@ type SchemaProcessor struct {
 	Overwrite   bool
 	Stdout      bool
 	Fmt         bool
+	Comment     bool
 	processed   map[string]bool
 }
 
@@ -249,15 +253,19 @@ func camelCase(name string) string {
 	return caseName
 }
 
-func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err error) {
-	prettyPrint, err := json.MarshalIndent(schema, "// ", "  ")
-	if err != nil {
-		return "", err
+func (s *SchemaProcessor) structComment(schema *Schema, typeName string) string {
+	if !s.Comment {
+		return ""
 	}
+	prettySchema, _ := json.MarshalIndent(schema, "// ", "  ")
+	return fmt.Sprintf("// %s defined from schema:\n// %s\n", typeName, prettySchema)
+}
+
+func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err error) {
 	if schema.Type == OBJECT {
 		typeName = camelCase(schema.Name())
 		if schema.Properties != nil {
-			typeData := fmt.Sprintf("// %s defined from schema:\n// %s\ntype %s struct {\n", typeName, prettyPrint, typeName)
+			typeData := fmt.Sprintf("%stype %s struct {\n", s.structComment(schema, typeName), typeName)
 			keys := []string{}
 			for k := range schema.Properties {
 				keys = append(keys, k)
@@ -292,7 +300,7 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 				// verify subTypeName is not a simple type
 				if strings.Title(subTypeName) == subTypeName {
 					typeName = strings.TrimPrefix(fmt.Sprintf("%sMap", subTypeName), "*")
-					typeData := fmt.Sprintf("// %s defined from schema:\n// %s\ntype %s map[string]%s\n\n", typeName, prettyPrint, typeName, subTypeName)
+					typeData := fmt.Sprintf("%stype %s map[string]%s\n\n", s.structComment(schema, typeName), typeName, subTypeName)
 					if err := s.writeGoCode(typeName, typeData); err != nil {
 						return "", err
 					}
@@ -313,7 +321,7 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 				typeName = fmt.Sprintf("%ss", subTypeName)
 			}
 			typeName = strings.TrimPrefix(typeName, "*")
-			typeData := fmt.Sprintf("// %s defined from schema:\n// %s\ntype %s []%s\n\n", typeName, prettyPrint, typeName, subTypeName)
+			typeData := fmt.Sprintf("%stype %s []%s\n\n", s.structComment(schema, typeName), typeName, subTypeName)
 			if err := s.writeGoCode(typeName, typeData); err != nil {
 				return "", err
 			}
