@@ -31,7 +31,7 @@
     "name": {
       "type": "string"
     },
-    "phone": {
+    "phones": {
       "type": "array",
       "items": {
         "title": "phone",
