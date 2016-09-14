@@ -98,7 +98,10 @@ docker-build:
 	cp dist/slipscheme-linux-amd64 docker-root/bin/slipscheme
 	[ -f $(GOTARGZ) ] || wget https://storage.googleapis.com/golang/$(GOTARGZ)
 	tar xzf ./go1.6.3.linux-amd64.tar.gz -C docker-root --strip-components 1 go/bin/gofmt
-	docker build -t coryb/$(NAME):$(CURVER) .
+	docker build \
+		--build-arg VERSION=$(CURVER) \
+		--build-arg VCS_REF=$(strip $(shell git rev-parse --short HEAD)) \
+		-t coryb/$(NAME):$(CURVER) .
 	docker tag coryb/$(NAME):$(CURVER) coryb/$(NAME):latest
 
 docker-release: docker-build

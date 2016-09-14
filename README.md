@@ -1,3 +1,5 @@
+[![](https://images.microbadger.com/badges/image/coryb/slipscheme.svg)](http://microbadger.com/images/coryb/slipscheme)
+[![](https://images.microbadger.com/badges/version/coryb/slipscheme.svg)](http://microbadger.com/images/coryb/slipscheme)
 [![Build Status](https://travis-ci.org/coryb/slipscheme.svg?branch=master)](https://travis-ci.org/coryb/slipscheme)
 
 ## slipscheme
