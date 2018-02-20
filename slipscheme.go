@@ -357,7 +357,7 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 	} else if schema.Type == INTEGER {
 		typeName = "int"
 	} else if schema.Type == NUMBER {
-		typeName = "float"
+		typeName = "float64"
 	} else if schema.Type == NULL || schema.Type == ANY {
 		typeName = "interface{}"
 	} else if schema.Type == STRING {
