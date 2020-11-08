@@ -5,7 +5,8 @@ RUN CGO_ENABLED=0 go build
 
 FROM scratch
 COPY --from=build /src/slipscheme .
-ENTRYPOINT ["./slipscheme"]
+WORKDIR /work
+ENTRYPOINT ["/slipscheme"]
 ARG VERSION
 ARG VCS_REF
 LABEL org.label-schema.vcs-url=https://github.com/coryb/slipscheme \
