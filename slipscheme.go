@@ -16,16 +16,22 @@ import (
 
 // Schema represents JSON schema.
 type Schema struct {
-	Title             string             `json:"title,omitempty"`
-	ID                string             `json:"id,omitempty"`
-	Type              SchemaType         `json:"type,omitempty"`
-	Description       string             `json:"description,omitempty"`
-	Definitions       map[string]*Schema `json:"definitions,omitempty"`
-	Properties        map[string]*Schema `json:"properties,omitempty"`
-	PatternProperties map[string]*Schema `json:"patternProperties,omitempty"`
-	Ref               string             `json:"$ref,omitempty"`
-	Items             *Schema            `json:"items,omitempty"`
-	Root              *Schema            `json:"-"`
+	Title                string             `json:"title,omitempty"`
+	ID                   string             `json:"id,omitempty"`
+	Type                 SchemaType         `json:"type,omitempty"`
+	Description          string             `json:"description,omitempty"`
+	Definitions          map[string]*Schema `json:"definitions,omitempty"`
+	Properties           map[string]*Schema `json:"properties,omitempty"`
+	AdditionalProperties bool               `json:"additionalProperties,omitempty"`
+	PatternProperties    map[string]*Schema `json:"patternProperties,omitempty"`
+	Ref                  string             `json:"$ref,omitempty"`
+	Items                *Schema            `json:"items,omitempty"`
+	OneOf                []*Schema          `json:"oneOf,omitempty"`
+	Const                string             `json:"const,omitempty"`
+	Enum                 []string           `json:"enum,omitempty"`
+	Root                 *Schema            `json:"-"`
+	// only populated on Root node
+	raw map[string]interface{}
 }
 
 // Name will attempt to determine the name of the Schema element using
@@ -63,6 +69,16 @@ const (
 	STRING SchemaType = iota
 )
 
+var schemaTypes = map[string]SchemaType{
+	"array":   ARRAY,
+	"boolean": BOOLEAN,
+	"integer": INTEGER,
+	"number":  NUMBER,
+	"null":    NULL,
+	"object":  OBJECT,
+	"string":  STRING,
+}
+
 // UnmarshalJSON for SchemaType so we can parse the schema
 // type string and set the ENUM
 func (s *SchemaType) UnmarshalJSON(b []byte) error {
@@ -71,16 +87,7 @@ func (s *SchemaType) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-	types := map[string]SchemaType{
-		"array":   ARRAY,
-		"boolean": BOOLEAN,
-		"integer": INTEGER,
-		"number":  NUMBER,
-		"null":    NULL,
-		"object":  OBJECT,
-		"string":  STRING,
-	}
-	if val, ok := types[schemaType]; ok {
+	if val, ok := schemaTypes[schemaType]; ok {
 		*s = val
 		return nil
 	}
@@ -90,25 +97,33 @@ func (s *SchemaType) UnmarshalJSON(b []byte) error {
 // MarshalJSON for SchemaType so we serialized the schema back
 // to json for debugging
 func (s *SchemaType) MarshalJSON() ([]byte, error) {
-	switch *s {
-	case ANY:
-		return []byte("\"object\""), nil
-	case ARRAY:
-		return []byte("\"array\""), nil
-	case BOOLEAN:
-		return []byte("\"boolean\""), nil
-	case INTEGER:
-		return []byte("\"integer\""), nil
-	case NUMBER:
-		return []byte("\"number\""), nil
-	case NULL:
-		return []byte("\"null\""), nil
-	case OBJECT:
-		return []byte("\"object\""), nil
-	case STRING:
-		return []byte("\"string\""), nil
+	schemaType := s.String()
+	if schemaType == "unknown" {
+		return nil, fmt.Errorf("Unknown Schema Type: %#v", s)
 	}
-	return nil, fmt.Errorf("Unknown Schema Type: %#v", s)
+	return []byte(fmt.Sprintf("%q", schemaType)), nil
+}
+
+func (s SchemaType) String() string {
+	switch s {
+	case ANY:
+		return "any"
+	case ARRAY:
+		return "array"
+	case BOOLEAN:
+		return "boolean"
+	case INTEGER:
+		return "integer"
+	case NUMBER:
+		return "number"
+	case NULL:
+		return "null"
+	case OBJECT:
+		return "object"
+	case STRING:
+		return "string"
+	}
+	return "unknown"
 }
 
 func main() {
@@ -219,6 +234,14 @@ func (s *SchemaProcessor) ParseSchema(data []byte) (*Schema, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	raw := map[string]interface{}{}
+	err = json.Unmarshal(data, &raw)
+	if err != nil {
+		return nil, err
+	}
+	schema.raw = raw
+
 	setRoot(schema, schema)
 	return schema, nil
 }
@@ -242,6 +265,10 @@ func setRoot(root, schema *Schema) {
 		setRoot(root, schema.Items)
 	}
 
+	for _, one := range schema.OneOf {
+		setRoot(root, one)
+	}
+
 	if schema.Ref != "" {
 		schemaPath := strings.Split(schema.Ref, "/")
 		var ctx interface{}
@@ -260,8 +287,47 @@ func setRoot(root, schema *Schema) {
 				ctx = ctx.(*Schema).Items
 			default:
 				if cast, ok := ctx.(map[string]*Schema); ok {
-					ctx = cast[part]
+					if def, ok := cast[part]; ok {
+						ctx = def
+						continue
+					}
 				}
+				// no match in the structure, so loop through the raw document
+				// in case they are using out-of-spec paths ie #/$special/thing
+				var cursor interface{} = root.raw
+				for _, part := range schemaPath {
+					if part == "#" {
+						continue
+					}
+					cast, ok := cursor.(map[string]interface{})
+					if !ok {
+						panic(fmt.Sprintf("Expected map[string]interface{}, got: %T at path %q in $ref %q", cursor, part, schema.Ref))
+					}
+					value, ok := cast[part]
+					if !ok {
+						panic(fmt.Sprintf("path %q for $ref %q not found in document %#v", part, schema.Ref, cast))
+					}
+					cursor = value
+				}
+
+				// turn it back into json
+				document, err := json.Marshal(cursor)
+				if err != nil {
+					panic(err)
+				}
+				// now try to parse the new extracted sub document as a schema
+				refSchema := &Schema{}
+				err = json.Unmarshal(document, refSchema)
+				if err != nil {
+					panic(err)
+				}
+				setRoot(root, refSchema)
+
+				if refSchema.Name() == "" {
+					// just guess on the name from the json document path
+					refSchema.Description = part
+				}
+				ctx = refSchema
 			}
 		}
 		if cast, ok := ctx.(*Schema); ok {
@@ -352,6 +418,9 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 					typeName = fmt.Sprintf("map[string]%s", subTypeName)
 				}
 			}
+		} else if schema.AdditionalProperties {
+			// TODO we can probably do better, but this is a catch-all for now
+			typeName = "map[string]interface{}"
 		}
 	case ARRAY:
 		subTypeName, err := s.processSchema(schema.Items)
@@ -378,18 +447,118 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 		} else {
 			typeName = fmt.Sprintf("[]%s", subTypeName)
 		}
+	case ANY:
+		switch {
+		case len(schema.OneOf) > 0:
+			return s.mergeSchemas(schema, schema.OneOf...)
+		case schema.Const != "":
+			// Const is a special case of Enum
+			return "string", nil
+		case len(schema.Enum) > 0:
+			// TODO this is bogus, but assuming Enums are string types for now
+			return "string", nil
+		}
+		typeName = "interface{}"
 	case BOOLEAN:
 		typeName = "bool"
 	case INTEGER:
 		typeName = "int"
 	case NUMBER:
 		typeName = "float64"
-	case NULL, ANY:
+	case NULL:
 		typeName = "interface{}"
 	case STRING:
 		typeName = "string"
 	}
 	return
+}
+
+func (s *SchemaProcessor) mergeSchemas(parent *Schema, schemas ...*Schema) (typeName string, err error) {
+	switch len(schemas) {
+	case 0:
+		return "", fmt.Errorf("Merging zero schemas")
+	case 1:
+		// TODO: Not sure this is correct, should the name come from the oneOf
+		// schema or the only constraint schema?
+		return s.processSchema(schemas[0])
+	}
+
+	mergedParent := &Schema{
+		Description: parent.Name(),
+		Root:        parent.Root,
+		Properties:  map[string]*Schema{},
+		Type:        OBJECT,
+	}
+
+	uncommonSchemas := map[string]*Schema{}
+	for _, schema := range schemas {
+		// TODO we need a Schema.Copy() function
+		uncommonSchemas[schema.Name()] = &Schema{
+			Description: schema.Name(),
+			Root:        parent.Root,
+			Properties:  map[string]*Schema{},
+			Type:        schema.Type,
+		}
+	}
+
+	// find any common properties, and assign them to mergeParent
+	// else create subtype with uncommon properties with `json:",inline"`
+
+	allProperties := map[string]int{}
+	for _, schema := range schemas {
+		for p := range schema.Properties {
+			allProperties[p]++
+		}
+	}
+
+	for _, schema := range schemas {
+		for p, v := range schema.Properties {
+			if allProperties[p] > 1 {
+				mergedParent.Properties[p] = v
+			} else {
+				uncommonSchemas[schema.Name()].Properties[p] = v
+			}
+		}
+	}
+
+	typeName = camelCase(mergedParent.Name())
+	typeData := fmt.Sprintf("%stype %s struct {\n", s.structComment(mergedParent, typeName), typeName)
+
+	keys := []string{}
+	for k := range mergedParent.Properties {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := mergedParent.Properties[k]
+		subTypeName, err := s.processSchema(v)
+		if err != nil {
+			return "", err
+		}
+		typeData += fmt.Sprintf("    %s %s `json:\"%s,omitempty\" yaml:\"%s,omitempty\"`\n", camelCase(k), subTypeName, k, k)
+	}
+
+	oneOfKeys := []string{}
+	for name, schema := range uncommonSchemas {
+		if len(schema.Properties) > 0 {
+			oneOfKeys = append(oneOfKeys, name)
+		}
+	}
+	sort.Strings(oneOfKeys)
+
+	for _, k := range oneOfKeys {
+		oneOfTypeName, err := s.processSchema(uncommonSchemas[k])
+		if err != nil {
+			return "", err
+		}
+		typeData += fmt.Sprintf("    %s %s `json:\",inline\" yaml:\",inline\"`\n", camelCase(k), oneOfTypeName)
+	}
+
+	typeData += "}\n\n"
+	if err := s.writeGoCode(typeName, typeData); err != nil {
+		return "", err
+	}
+	return typeName, nil
 }
 
 func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
