@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -111,14 +112,31 @@ func (s *SchemaType) MarshalJSON() ([]byte, error) {
 }
 
 func main() {
-	outputDir := flag.String("dir", ".", "output directory for go files")
-	pkgName := flag.String("pkg", "main", "package namespace for go files")
-	overwrite := flag.Bool("overwrite", false, "force overwriting existing go files")
-	stdout := flag.Bool("stdout", false, "print go code to stdout rather than files")
-	format := flag.Bool("fmt", true, "pass code through gofmt")
-	comments := flag.Bool("comments", true, "enable/disable print comments")
+	exitCode := Main(os.Args, Stdio{
+		Stdin:  os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	})
+	os.Exit(exitCode)
+}
 
-	flag.Parse()
+type Stdio struct {
+	Stdin  io.Reader
+	Stdout io.Writer
+	Stderr io.Writer
+}
+
+func Main(arguments []string, io Stdio) int {
+	flags := flag.NewFlagSet(arguments[0], flag.ExitOnError)
+	outputDir := flags.String("dir", ".", "output directory for go files")
+	pkgName := flags.String("pkg", "main", "package namespace for go files")
+	overwrite := flags.Bool("overwrite", false, "force overwriting existing go files")
+	stdout := flags.Bool("stdout", false, "print go code to stdout rather than files")
+	format := flags.Bool("fmt", true, "pass code through gofmt")
+	comments := flags.Bool("comments", true, "enable/disable print comments")
+
+	flags.SetOutput(io.Stderr)
+	flags.Parse(arguments[1:])
 
 	processor := &SchemaProcessor{
 		OutputDir:   *outputDir,
@@ -127,19 +145,22 @@ func main() {
 		Stdout:      *stdout,
 		Fmt:         *format,
 		Comment:     *comments,
+		IO:          io,
 	}
 
-	args := flag.Args()
+	args := flags.Args()
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <schema file> [<schema file> ...]\n", os.Args[0])
-		flag.PrintDefaults()
-		os.Exit(1)
+		flags.SetOutput(io.Stdout)
+		fmt.Fprintf(io.Stdout, "Usage: %s <schema file> [<schema file> ...]\n", arguments[0])
+		flags.PrintDefaults()
+		return 0
 	}
 	err := processor.Process(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		os.Exit(1)
+		fmt.Fprintf(io.Stderr, "Error: %s\n", err)
+		return 1
 	}
+	return 0
 }
 
 // SchemaProcessor object used to convert json schemas to golang structs
@@ -151,24 +172,26 @@ type SchemaProcessor struct {
 	Fmt         bool
 	Comment     bool
 	processed   map[string]bool
+	IO          Stdio
 }
 
 // Process will read a list of json schema files, parse them
 // and write them to the OutputDir
 func (s *SchemaProcessor) Process(files []string) error {
 	for _, file := range files {
-		var fh *os.File
+		var r io.Reader
+		var b []byte
 		if file == "-" {
-			fh = os.Stdin
+			r = s.IO.Stdin
 		} else {
-			var err error
-			fh, err = os.OpenFile(file, os.O_RDONLY, 0644)
+			fh, err := os.OpenFile(file, os.O_RDONLY, 0644)
 			defer fh.Close()
 			if err != nil {
 				return err
 			}
+			r = fh
 		}
-		b, err := ioutil.ReadAll(fh)
+		b, err := ioutil.ReadAll(r)
 		if err != nil {
 			return err
 		}
@@ -383,8 +406,8 @@ func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
 		if s.Fmt {
 			cmd := exec.Command("gofmt", "-s")
 			inPipe, _ := cmd.StdinPipe()
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
+			cmd.Stdout = s.IO.Stdout
+			cmd.Stderr = s.IO.Stderr
 			cmd.Start()
 			inPipe.Write([]byte(code))
 			inPipe.Close()
@@ -428,9 +451,9 @@ func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
 
 	if s.Fmt {
 		cmd := exec.Command("gofmt", "-s", "-w", file)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdin = s.IO.Stdin
+		cmd.Stdout = s.IO.Stdout
+		cmd.Stderr = s.IO.Stderr
 		return cmd.Run()
 	}
 	return nil
