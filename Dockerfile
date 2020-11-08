@@ -3,8 +3,8 @@ COPY go.mod *.go /src/
 WORKDIR /src
 RUN CGO_ENABLED=0 go build
 
-FROM scratch
-COPY --from=build /src/slipscheme .
+FROM golang:alpine
+COPY --from=build /src/slipscheme /slipscheme
 WORKDIR /work
 ENTRYPOINT ["/slipscheme"]
 ARG VERSION

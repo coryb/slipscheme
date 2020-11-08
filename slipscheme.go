@@ -374,7 +374,8 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 	switch schema.Type {
 	case OBJECT:
 		typeName = camelCase(schema.Name())
-		if schema.Properties != nil {
+		switch {
+		case schema.Properties != nil:
 			typeData := fmt.Sprintf("%stype %s struct {\n", s.structComment(schema, typeName), typeName)
 			keys := []string{}
 			for k := range schema.Properties {
@@ -394,7 +395,7 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 				return "", err
 			}
 			typeName = fmt.Sprintf("*%s", typeName)
-		} else if schema.PatternProperties != nil {
+		case schema.PatternProperties != nil:
 			keys := []string{}
 			for k := range schema.PatternProperties {
 				keys = append(keys, k)
@@ -418,7 +419,7 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 					typeName = fmt.Sprintf("map[string]%s", subTypeName)
 				}
 			}
-		} else if schema.AdditionalProperties {
+		case schema.AdditionalProperties:
 			// TODO we can probably do better, but this is a catch-all for now
 			typeName = "map[string]interface{}"
 		}
