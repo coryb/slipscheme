@@ -1,0 +1,38 @@
+name: Build
+on: [push, pull_request]
+jobs:
+    compile:
+        name: Test
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                go: [ '1.15', '1.14', '1.13' ]
+                os: [ 'ubuntu-latest', 'macos-latest', 'windows-latest' ]
+        steps:
+            -
+                uses: actions/checkout@v2
+            -
+                name: Setup go
+                uses: actions/setup-go@v2
+                with:
+                    go-version: ${{ matrix.go }}
+            -
+                name: Go Build
+                run: go build -gcflags="-e"
+                env:
+                    CGO_ENABLED: 0
+            -
+                name: Go Test
+                run: go test -v ./...
+
+    lint:
+        name: Lint
+        runs-on: ubuntu-latest
+        steps:
+            -
+                uses: actions/checkout@v2
+            - 
+                uses: golangci/golangci-lint-action@v2
+                with:
+                  version: v1.32
+                  args: --fast
