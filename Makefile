@@ -1,5 +1,6 @@
+GOBUILD=CGO_ENABLED=0 go build -ldflags "-w -s"
 build:
-	CGO_ENABLED=0 go build -ldflags "-w -s" $(if $(GOOS),-o dist/slipscheme-$(GOOS)-$(GOARCH)$(if $(filter windows,$(GOOS)),.exe,),)
+	 $(GOBUILD) $(if $(GOOS),-o dist/slipscheme-$(GOOS)-$(GOARCH)$(if $(filter windows,$(GOOS)),.exe,),)
 
 all:
 	@rm -rf dist && mkdir -p dist
@@ -7,6 +8,9 @@ all:
 	@docker run --rm -v $(PWD):/src -w /src -e GOOS=linux -e GOARCH=amd64 golang:latest make build
 	@docker run --rm -v $(PWD):/src -w /src -e GOOS=windows -e GOARCH=amd64 golang:latest make build
 	@docker run --rm -v $(PWD):/src -w /src -e GOOS=darwin -e GOARCH=amd64 golang:latest make build
+
+install:
+	$(GOBUILD) -o $(HOME)/bin/
 
 CURVER ?= $(patsubst v%,%,$(shell [ -d .git ] && git describe --abbrev=0 --tags || grep ^\#\# CHANGELOG.md | awk '{print $$2; exit}'))
 NEWVER ?= $(shell echo $(CURVER) | awk -F. '{print $$1"."$$2"."$$3+1}')
