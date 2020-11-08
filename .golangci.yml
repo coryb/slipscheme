@@ -1,0 +1,30 @@
+linters:
+  enable-all: false
+  disable-all: true
+  enable:
+    - deadcode
+    - depguard
+    - gocritic
+    - gofmt
+    - goimports
+    - golint
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - scopelint
+    - structcheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+
+issues:
+  exclude-use-default: false
+  exclude:
+    - ST1005
+    - "should be [^ ]*(SSH|JSON|XML|UID|ID|API|URL|URI|HTTP|HTML|IP)"
+    - 'result .* is always (false|nil|`nil`)'
+    - 'result .* is never used'
+    - "and that stutters"

@@ -112,7 +112,7 @@ func (s *SchemaType) MarshalJSON() ([]byte, error) {
 }
 
 func main() {
-	exitCode := Main(os.Args, Stdio{
+	exitCode := runMain(os.Args, Stdio{
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
@@ -120,13 +120,14 @@ func main() {
 	os.Exit(exitCode)
 }
 
+// Stdio holds common io readers/writers
 type Stdio struct {
 	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
 }
 
-func Main(arguments []string, io Stdio) int {
+func runMain(arguments []string, io Stdio) int {
 	flags := flag.NewFlagSet(arguments[0], flag.ExitOnError)
 	outputDir := flags.String("dir", ".", "output directory for go files")
 	pkgName := flags.String("pkg", "main", "package namespace for go files")
@@ -246,17 +247,18 @@ func setRoot(root, schema *Schema) {
 		var ctx interface{}
 		ctx = schema
 		for _, part := range schemaPath {
-			if part == "#" {
+			switch part {
+			case "#":
 				ctx = root
-			} else if part == "definitions" {
+			case "definitions":
 				ctx = ctx.(*Schema).Definitions
-			} else if part == "properties" {
+			case "properties":
 				ctx = ctx.(*Schema).Properties
-			} else if part == "patternProperties" {
+			case "patternProperties":
 				ctx = ctx.(*Schema).PatternProperties
-			} else if part == "items" {
+			case "items":
 				ctx = ctx.(*Schema).Items
-			} else {
+			default:
 				if cast, ok := ctx.(map[string]*Schema); ok {
 					ctx = cast[part]
 				}
@@ -277,7 +279,7 @@ func camelCase(name string) string {
 			return ' '
 		}, name),
 	)
-	caseName = strings.Replace(caseName, " ", "", -1)
+	caseName = strings.ReplaceAll(caseName, " ", "")
 
 	for _, suffix := range []string{"Id", "Url", "Json", "Xml"} {
 		if strings.HasSuffix(caseName, suffix) {
@@ -303,7 +305,8 @@ func (s *SchemaProcessor) structComment(schema *Schema, typeName string) string 
 }
 
 func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err error) {
-	if schema.Type == OBJECT {
+	switch schema.Type {
+	case OBJECT:
 		typeName = camelCase(schema.Name())
 		if schema.Properties != nil {
 			typeData := fmt.Sprintf("%stype %s struct {\n", s.structComment(schema, typeName), typeName)
@@ -350,7 +353,7 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 				}
 			}
 		}
-	} else if schema.Type == ARRAY {
+	case ARRAY:
 		subTypeName, err := s.processSchema(schema.Items)
 		if err != nil {
 			return "", err
@@ -375,15 +378,15 @@ func (s *SchemaProcessor) processSchema(schema *Schema) (typeName string, err er
 		} else {
 			typeName = fmt.Sprintf("[]%s", subTypeName)
 		}
-	} else if schema.Type == BOOLEAN {
+	case BOOLEAN:
 		typeName = "bool"
-	} else if schema.Type == INTEGER {
+	case INTEGER:
 		typeName = "int"
-	} else if schema.Type == NUMBER {
+	case NUMBER:
 		typeName = "float64"
-	} else if schema.Type == NULL || schema.Type == ANY {
+	case NULL, ANY:
 		typeName = "interface{}"
-	} else if schema.Type == STRING {
+	case STRING:
 		typeName = "string"
 	}
 	return
@@ -427,7 +430,7 @@ func (s *SchemaProcessor) writeGoCode(typeName, code string) error {
 	if err != nil {
 		return err
 	}
-	//defer fh.Close()
+	defer fh.Close()
 	preamble := fmt.Sprintf("package %s\n", s.PackageName)
 	preamble += fmt.Sprintf(`
 /////////////////////////////////////////////////////////////////////////

@@ -9,7 +9,7 @@ import (
 )
 
 func ExampleUsage() {
-	Main([]string{"slipscheme"}, Stdio{
+	runMain([]string{"slipscheme"}, Stdio{
 		Stdout: os.Stdout,
 	})
 	// Output:
@@ -31,7 +31,7 @@ func ExampleUsage() {
 func TestOutputFiles(t *testing.T) {
 	tdir, err := ioutil.TempDir("", "slipscheme")
 	noError(t, err)
-	Main([]string{"slipscheme", "-dir", tdir, "sample.json"}, Stdio{
+	runMain([]string{"slipscheme", "-dir", tdir, "sample.json"}, Stdio{
 		Stdout: os.Stdout,
 	})
 	exists(t, filepath.Join(tdir, "Contact.go"))
@@ -40,7 +40,7 @@ func TestOutputFiles(t *testing.T) {
 	exists(t, filepath.Join(tdir, "Phones.go"))
 }
 
-func ExampleStdoutSlice() {
+func Example_stdoutSlice() {
 	input := `{
 	"title": "stuff",
 	"type": "array",
@@ -48,7 +48,7 @@ func ExampleStdoutSlice() {
 		"type": "string"
 	}
 }`
-	Main([]string{"slipscheme", "-stdout=true", "-"}, Stdio{
+	runMain([]string{"slipscheme", "-stdout=true", "-"}, Stdio{
 		Stdin:  strings.NewReader(input),
 		Stdout: os.Stdout,
 	})
@@ -65,7 +65,7 @@ func ExampleStdoutSlice() {
 	// type Stuff []string
 }
 
-func ExampleNoComments() {
+func Example_noComments() {
 	input := `{
 	"title": "stuff",
 	"type": "array",
@@ -73,7 +73,7 @@ func ExampleNoComments() {
 		"type": "string"
 	}
 }`
-	Main([]string{"slipscheme", "-stdout=true", "-comments=false", "-"}, Stdio{
+	runMain([]string{"slipscheme", "-stdout=true", "-comments=false", "-"}, Stdio{
 		Stdin:  strings.NewReader(input),
 		Stdout: os.Stdout,
 	})
@@ -82,7 +82,7 @@ func ExampleNoComments() {
 	// type Stuff []string
 }
 
-func ExampleStruct() {
+func Example_struct() {
 	input := `{
 	"title": "thing",
 	"type": "object",
@@ -95,7 +95,7 @@ func ExampleStruct() {
 		}
 	}
 }`
-	Main([]string{"slipscheme", "-stdout=true", "-comments=false", "-"}, Stdio{
+	runMain([]string{"slipscheme", "-stdout=true", "-comments=false", "-"}, Stdio{
 		Stdin:  strings.NewReader(input),
 		Stdout: os.Stdout,
 	})
@@ -107,7 +107,7 @@ func ExampleStruct() {
 	// }
 }
 
-func ExampleNoFmt() {
+func Example_noFmt() {
 	input := `{
 	"title": "thing",
 	"type": "object",
@@ -120,7 +120,7 @@ func ExampleNoFmt() {
 		}
 	}
 }`
-	Main([]string{"slipscheme", "-stdout=true", "-comments=false", "-fmt=false", "-"}, Stdio{
+	runMain([]string{"slipscheme", "-stdout=true", "-comments=false", "-fmt=false", "-"}, Stdio{
 		Stdin:  strings.NewReader(input),
 		Stdout: os.Stdout,
 	})
@@ -132,7 +132,7 @@ func ExampleNoFmt() {
 	// }
 }
 
-func ExampleStructSlice() {
+func Example_structSlice() {
 	input := `{
 	"title": "stuff",
 	"type": "array",
@@ -149,7 +149,7 @@ func ExampleStructSlice() {
 		}
 	}
 }`
-	Main([]string{"slipscheme", "-stdout=true", "-comments=false", "-"}, Stdio{
+	runMain([]string{"slipscheme", "-stdout=true", "-comments=false", "-"}, Stdio{
 		Stdin:  strings.NewReader(input),
 		Stdout: os.Stdout,
 	})
